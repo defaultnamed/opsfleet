@@ -13,20 +13,20 @@ This repository provisions a production-ready Kubernetes cluster on AWS using:
 ```
 ┌───────────────────────────── Dedicated VPC (10.0.0.0/16) ──────────────────────────────┐
 │                                                                                          │
-│  Public subnets  (/20 × 3 AZs)  →  NAT Gateways / Load Balancers                       │
-│  Private subnets (/20 × 3 AZs)  →  EKS Nodes (tagged for Karpenter discovery)          │
+│  Public subnets  (/20 × 2 AZs)  →  NAT Gateways / Load Balancers                       │
+│  Private subnets (/20 × 2 AZs)  →  EKS Nodes (tagged for Karpenter discovery)          │
 │                                                                                          │
 │  ┌─────────────────── EKS Cluster (v1.33) ──────────────────────────────────────────┐   │
 │  │                                                                                   │   │
-│  │   System Managed Node Group (t3.large × 2, On-Demand, tainted)                   │   │
-│  │     └── Karpenter controller (HA, 2 replicas)                                    │   │
+│  │   System Managed Node Group (t3.large, On-Demand, tainted)                   │   │
+│  │     └── Karpenter controller (1 replicas)                                    │   │
 │  │     └── CoreDNS / kube-proxy / VPC CNI                                           │   │
 │  │                                                                                   │   │
-│  │   Karpenter NodePool: arm64  (weight 100 — preferred)                            │   │
-│  │     └── Graviton2/3/4 Spot → m6g, m7g, m8g, c6g, c7g, c8g, r6g, r7g, t4g       │   │
-│  │                                                                                   │   │
-│  │   Karpenter NodePool: x86   (weight 50)                                          │   │
-│  │     └── Intel/AMD Spot → m5/m6i/m7i, c5/c6i/c7i, r5/r6i/r7i, and more          │   │
+│  │   Karpenter NodePool: x86   (weight 100 — preferred)                             │   │
+│  │     └── Intel/AMD Spot → t2, t3                                                  │   │
+│  │                                                                                  │   │
+│  │   Karpenter NodePool: arm64  (weight 50)                                         │   │
+│  │     └── Graviton Spot → t4g                                                      │   │
 │  │                                                                                   │   │
 │  └───────────────────────────────────────────────────────────────────────────────────┘   │
 └──────────────────────────────────────────────────────────────────────────────────────────┘
@@ -47,59 +47,24 @@ This repository provisions a production-ready Kubernetes cluster on AWS using:
 
 ## Quick Start
 
-### 1. Clone and initialise
+A `bootstrap.sh` script is provided to automate everything from the prerequisites to verifying the cluster. It will:
+1. Ensure the required `AWSServiceRoleForEC2Spot` service-linked role is created in your account.
+2. Initialise and apply the Terraform configuration.
+3. Update your local kubeconfig.
+4. Verify the cluster nodes and Karpenter deployment.
 
 ```bash
 git clone <repo-url>
-cd terraform/
-terraform init
+cd <repo-dir>
+
+# Overrides (optional):
+# export AWS_REGION="us-east-1"
+# export CLUSTER_NAME="my-company-eks"
+
+./scripts/bootstrap.sh
 ```
 
-### 2. (Optional) Override defaults
-
-Create a `terraform.tfvars` file:
-
-```hcl
-region       = "eu-west-1"
-cluster_name = "my-company-eks"
-```
-
-All available variables and their defaults:
-
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `region` | `us-east-1` | AWS region |
-| `cluster_name` | `startup-eks` | EKS cluster name |
-| `cluster_version` | `1.33` | Kubernetes version |
-| `vpc_cidr` | `10.0.0.0/16` | VPC CIDR block |
-| `karpenter_version` | `1.3.3` | Karpenter Helm chart version |
-| `system_node_instance_type` | `t3.large` | Instance type for system node group |
-| `system_node_count` | `2` | Node count for system node group |
-
-### 3. Review and apply
-
-```bash
-terraform plan
-terraform apply
-```
-
-Provisioning takes approximately **15–20 minutes** (EKS cluster creation dominates).
-
-### 4. Configure kubectl
-
-The `configure_kubectl` output contains the exact command you need:
-
-```bash
-terraform output -raw configure_kubectl | bash
-# e.g. aws eks update-kubeconfig --name startup-eks --region us-east-1
-```
-
-Verify connectivity:
-
-```bash
-kubectl get nodes -o wide
-kubectl get pods -n karpenter
-```
+*(Note: Provisioning takes approximately **15–20 minutes** as the EKS cluster creation dominates the setup time.)*
 
 ---
 
@@ -225,7 +190,7 @@ docker buildx build \
   -t my-registry/my-app:latest .
 ```
 
-When both platforms are present in the image, you can omit the `nodeSelector` entirely — Karpenter will prefer the arm64 (Graviton) NodePool due to its higher weight, choosing the cheaper, more performant option automatically.
+When both platforms are present in the image, you can omit the `nodeSelector` entirely — Karpenter will prefer the x86 NodePool due to its higher weight, choosing the broader compatibility option automatically.
 
 ---
 
@@ -246,7 +211,7 @@ terraform destroy
 
 | Component | Strategy | Estimated savings |
 |-----------|----------|-------------------|
-| Workload nodes | Spot instances (both pools) | Up to 70% vs On-Demand |
-| Graviton nodes | arm64 NodePool (preferred) | Additional 20–40% vs x86 On-Demand |
+| Workload nodes | Spot instances (t2, t3, t4g) | Up to 70% vs On-Demand |
+| Graviton nodes | arm64 NodePool | Additional 20–40% vs x86 On-Demand |
 | System nodes | 2 × t3.large On-Demand | ~$0.17/hr total — never interrupted |
 | Idle nodes | Karpenter consolidation (`WhenEmptyOrUnderutilized`) | Unused nodes terminated in ≤ 1 minute |
