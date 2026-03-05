@@ -2,7 +2,7 @@
 
 This repository provisions a production-ready Kubernetes cluster on AWS using:
 
-- **Amazon EKS 1.33** inside a dedicated VPC
+- **Amazon EKS 1.35** inside a dedicated VPC
 - **Karpenter v1.3** for node autoscaling
 - **Graviton (arm64) and x86 (amd64) Spot instances** for optimal cost/performance
 
@@ -213,5 +213,5 @@ terraform destroy
 |-----------|----------|-------------------|
 | Workload nodes | Spot instances (t2, t3, t4g) | Up to 70% vs On-Demand |
 | Graviton nodes | arm64 NodePool | Additional 20–40% vs x86 On-Demand |
-| System nodes | 2 × t3.large On-Demand | ~$0.17/hr total — never interrupted |
+| System nodes | 1 × t3.large On-Demand | ~$0.17/hr total — never interrupted |
 | Idle nodes | Karpenter consolidation (`WhenEmptyOrUnderutilized`) | Unused nodes terminated in ≤ 1 minute |
