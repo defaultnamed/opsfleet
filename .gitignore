@@ -1,0 +1,67 @@
+# ─── OS / Editor ────────────────────────────────────────────────────────────
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+Thumbs.db
+
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# ─── Terraform ───────────────────────────────────────────────────────────────
+# Local .terraform directories (provider cache, modules)
+**/.terraform/
+**/.terraform.lock.hcl   # keep if you want reproducible provider versions; delete this line if so
+
+# State files — NEVER commit real state to version control
+*.tfstate
+*.tfstate.*
+*.tfstate.backup
+
+# Plan files (may contain secrets)
+*.tfplan
+*.plan
+
+# Override files (local developer overrides)
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+
+# Variable files that may contain secrets
+*.tfvars
+*.tfvars.json
+!*.example.tfvars       # allow committed example var files
+
+# Crash logs
+crash.log
+crash.*.log
+
+# Terraform CLI config (home dir file, shouldn't be in repos)
+.terraformrc
+terraform.rc
+
+# ─── AWS / Secrets ───────────────────────────────────────────────────────────
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+secrets/
+credentials
+
+# ─── Kubernetes / Helm ───────────────────────────────────────────────────────
+kubeconfig
+kubeconfig.*
+*.kubeconfig
+
+# ─── Misc ────────────────────────────────────────────────────────────────────
+*.log
+*.tmp
+*.bak
+dist/
+build/
